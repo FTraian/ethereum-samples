@@ -1,4 +1,4 @@
-pragma solidity ^0.4.1;
+pragma solidity >=0.4.22 <0.6.0;
 /** A PoC for a betting exchange.
 */
 contract Beth {
@@ -20,7 +20,7 @@ contract Beth {
         bool exists;
     }
     
-    function Beth() {
+    constructor() public {
         creator = msg.sender;
     }
 
@@ -28,42 +28,42 @@ contract Beth {
     *  The <i>runner</i> name is the key on which the bet matching is done.
     *  Each bet is matched with previously placed bets. Only exact match is done (no partially or cross matching implementd)
     */
-    function bet(string runner, uint odds, bool isBack) payable {
-        var bet = Bet(runner, msg.value, odds, msg.sender, isBack, false, true);
+    function bet(string runner, uint odds, bool isBack) public payable {
+        Bet memory placedBet = Bet(runner, msg.value, odds, msg.sender, isBack, false, true);
         if(positions[runner].length == 0) {
             keyNames.push(runner);
         }
 
         // match the bet if possible
-        var bets = positions[runner];
+        Bet[] memory bets = positions[runner];
         for (uint i = 0; i < bets.length; i++) {
-            var currentBet = bets[i];
-            if (bet.backBet != currentBet.backBet  && bet.stake == currentBet.stake) {
-                bet.isMatched = true;
+            Bet memory currentBet = bets[i];
+            if (placedBet.backBet != currentBet.backBet  && placedBet.stake == currentBet.stake) {
+                placedBet.isMatched = true;
                 currentBet.isMatched = true;
             }
         }
         
-        positions[runner].push(bet);
+        positions[runner].push(placedBet);
     }
     
     /** Function for settling a market and trensferring the winnings 
     */
-    function settle(string runner, bool isWinning) {
+    function settle(string runner, bool isWinning) public {
         if (msg.sender == creator) {
-            var bets = positions[runner];
+            Bet[] memory bets = positions[runner];
             
              for (uint i = 0; i < bets.length; i++) {
-                var bet = bets[i];
-                if(bet.isMatched){
-                    if(bet.backBet && isWinning){
-                        if(bet.sender.send(bet.odds * bet.stake)){}
+                Bet memory currentBet = bets[i];
+                if(currentBet.isMatched){
+                    if(currentBet.backBet && isWinning){
+                        if(currentBet.sender.send(currentBet.odds * currentBet.stake)){}
                     }
-                    if (!bet.backBet && ! isWinning) {
-                        if(bet.sender.send(bet.stake + bet.stake/bet.odds)){}
+                    if (!currentBet.backBet && ! isWinning) {
+                        if(currentBet.sender.send(currentBet.stake + currentBet.stake/currentBet.odds)){}
                     }
                 }else{
-                    if(bet.sender.send(bet.stake)){}
+                    if(currentBet.sender.send(currentBet.stake)){}
                 }
             }
         }
